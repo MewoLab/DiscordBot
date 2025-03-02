@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits } from "discord.js"
+import { Client, GatewayIntentBits, Partials } from "discord.js"
 import { ILogObj, Logger } from "tslog"
 import ISlashCommand from "./interactions/general"
 import PingCommand from "./interactions/ping"
@@ -12,7 +12,15 @@ const minLevel = Configuration.emit.log_level
 export const Log = new Logger<ILogObj>({ minLevel }),
     PrismaSingleton = new PrismaClient(),
     ClientSingleton = new Client({
-        intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+        partials: [
+            Partials.Message,
+            Partials.Reaction
+        ],
+        intents: [
+            GatewayIntentBits.Guilds, 
+            GatewayIntentBits.GuildMessages,
+            GatewayIntentBits.GuildMessageReactions,
+        ],
     }),
     commands: Record<string, ISlashCommand> = {}
 
