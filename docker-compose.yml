@@ -7,21 +7,29 @@ services:
     env_file:
       - .env
     volumes:
-      - .\prisma\:/app/prisma
+      - ./prisma/:/app/prisma
+    ports:
+      - "3000:3000"  # For web UI
     depends_on:
       db:
         condition: service_healthy
 
-
-
   db:
     image: mariadb
+    container_name: aquadxbot-db
+    restart: always
     volumes:
-      - .\data\:/var/lib/mysql
+      - ./data/:/var/lib/mysql
     env_file:
       - .env
+    environment:
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+      MARIADB_DATABASE: "${MARIADB_DATABASE}"
+      MARIADB_USER: "${DB_USER}"
+      MARIADB_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test: ["CMD", "mariadb", "-h", "localhost", "-u", "root", "-p${MARIADB_ROOT_PASSWORD}", "-e", "SELECT 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 30s
