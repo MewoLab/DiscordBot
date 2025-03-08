@@ -60,19 +60,18 @@ function attachReactionRoleEventListeners(client: Client, reactionRoleManager: R
             const member = await message.guild.members.fetch(user.id).catch(() => null);
             if (!member) return;
             
-            // Check if the role was added (we'll do this by checking if they have the role after a short delay)
-            setTimeout(async () => {
-                try {
-                    const role = await message.guild!.roles.fetch(config.roleId).catch(() => null);
-                    if (!role) return;
-                    
-                    if (member.roles.cache.has(role.id)) {
-                        console.log(`✅ Role added: "${role.name}" assigned to ${member.user.tag} from reaction ${reaction.emoji.toString()} on message ${message.id}`);
-                    }
-                } catch (error) {
-                    console.error('Error checking role assignment:', error);
+            try {
+                const role = await message.guild.roles.fetch(config.roleId).catch(() => null);
+                if (!role) return;
+                
+                // IMPORTANT FIX: Actually assign the role
+                if (!member.roles.cache.has(role.id)) {
+                    await member.roles.add(role);
+                    console.log(`✅ Role added: "${role.name}" assigned to ${member.user.tag} from reaction ${reaction.emoji.toString()} on message ${message.id}`);
                 }
-            }, 1000); // Check after 1 second to allow time for the role to be assigned
+            } catch (error) {
+                console.error('Error assigning role:', error);
+            }
         } catch (error) {
             console.error('Error in reaction add event handler:', error);
         }
@@ -100,19 +99,18 @@ function attachReactionRoleEventListeners(client: Client, reactionRoleManager: R
             const member = await message.guild.members.fetch(user.id).catch(() => null);
             if (!member) return;
             
-            // Check if the role was removed (we'll do this by checking if they don't have the role after a short delay)
-            setTimeout(async () => {
-                try {
-                    const role = await message.guild!.roles.fetch(config.roleId).catch(() => null);
-                    if (!role) return;
-                    
-                    if (!member.roles.cache.has(role.id)) {
-                        console.log(`❌ Role removed: "${role.name}" removed from ${member.user.tag} by removing reaction ${reaction.emoji.toString()} on message ${message.id}`);
-                    }
-                } catch (error) {
-                    console.error('Error checking role removal:', error);
+            try {
+                const role = await message.guild.roles.fetch(config.roleId).catch(() => null);
+                if (!role) return;
+                
+                // Remove the role if they have it
+                if (member.roles.cache.has(role.id)) {
+                    await member.roles.remove(role);
+                    console.log(`❌ Role removed: "${role.name}" removed from ${member.user.tag} by removing reaction ${reaction.emoji.toString()} on message ${message.id}`);
                 }
-            }, 1000); // Check after 1 second to allow time for the role to be removed
+            } catch (error) {
+                console.error('Error removing role:', error);
+            }
         } catch (error) {
             console.error('Error in reaction remove event handler:', error);
         }
