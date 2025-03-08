@@ -2,8 +2,11 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import path from 'path';
 import { Client } from 'discord.js';
-import { db } from './database';
+import { PrismaClient } from '@prisma/client';
 import { setupReactionRoleManager } from './reactionRoleManager';
+
+// Create a new Prisma client instance
+const prisma = new PrismaClient();
 
 export function startWebServer(client: Client, port: number = 3000) {
   // Initialize express app
@@ -18,7 +21,7 @@ export function startWebServer(client: Client, port: number = 3000) {
   // Get all reaction roles
   app.get('/api/reaction-roles', async (req: Request, res: Response) => {
     try {
-      const reactionRoles = await (await db.collection('reactionRoles').find({})).toArray();
+      const reactionRoles = await prisma.ReactionRole.findMany();
       res.json(reactionRoles);
     } catch (error) {
       console.error('Failed to get reaction roles:', error);
@@ -36,11 +39,13 @@ export function startWebServer(client: Client, port: number = 3000) {
         return res.status(400).json({ error: 'Missing required fields' });
       }
 
-      // Insert into database
-      await db.collection('reactionRoles').insertOne({
-        messageId,
-        roleId,
-        reaction
+      // Insert into database using Prisma
+      await prisma.ReactionRole.create({
+        data: {
+          messageId,
+          roleId,
+          reaction
+        }
       });
 
       // Reload reaction role manager
@@ -56,11 +61,16 @@ export function startWebServer(client: Client, port: number = 3000) {
   // Delete a reaction role
   app.delete('/api/reaction-roles/:id', async (req: Request, res: Response) => {
     try {
-      const result = await db.collection('reactionRoles').deleteOne({
-        id: parseInt(req.params.id)
+      const id = parseInt(req.params.id);
+      
+      // Delete using Prisma
+      const result = await prisma.ReactionRole.delete({
+        where: {
+          id: id
+        }
       });
       
-      if (result.deletedCount > 0) {
+      if (result) {
         // Reload reaction role manager
         await setupReactionRoleManager(client);
         res.json({ success: true, message: 'Reaction role deleted successfully' });
@@ -68,6 +78,11 @@ export function startWebServer(client: Client, port: number = 3000) {
         res.status(404).json({ error: 'Reaction role not found' });
       }
     } catch (error) {
+      // Handle record not found error
+      if ((error as any).code === 'P2025') {
+        return res.status(404).json({ error: 'Reaction role not found' });
+      }
+      
       console.error('Failed to delete reaction role:', error);
       res.status(500).json({ error: 'Failed to delete reaction role' });
     }

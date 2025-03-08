@@ -1,12 +1,26 @@
 import { Client, Snowflake, TextChannel, Message, GuildMember } from "discord.js"
-import { ReactionRole, ReactionRoleConfiguration } from "discordjs-reaction-role"
-import { db } from "./database" // Assuming you have a database module
+import { ReactionRole as DiscordReactionRole, ReactionRoleConfiguration } from "discordjs-reaction-role"
+import { PrismaClient } from "@prisma/client"
+
+// Create a new Prisma client instance
+const prisma = new PrismaClient()
+
+// Keep track of attached listeners
+let listenersAttached = false;
 
 export const setupReactionRoleManager = async (client: Client) => {
     console.log("Setting up reaction role manager...");
     
-    // Fetch reaction role configurations from database
-    const reactionRoleConfigs = await (await db.collection("reactionRoles").find({})).toArray();
+    // Fetch reaction role configurations from database using prisma
+    const reactionRoleConfigs = await prisma.ReactionRole.findMany({
+        select: {
+            id: true,
+            messageId: true,
+            roleId: true,
+            reaction: true
+            // Don't include fields that might be missing
+        }
+    });
     
     if (reactionRoleConfigs.length === 0) {
         console.log("No reaction role configurations found in database");
@@ -14,7 +28,7 @@ export const setupReactionRoleManager = async (client: Client) => {
     }
     
     // Convert database entries to ReactionRoleConfiguration format
-    const configuration: ReactionRoleConfiguration[] = reactionRoleConfigs.map((config: { messageId: string; roleId: string; reaction: any; }) => {
+    const configuration: ReactionRoleConfiguration[] = reactionRoleConfigs.map((config: { messageId: string; roleId: string; reaction: { toString: () => any } }) => {
         console.log(`Loading reaction role config: message=${config.messageId}, role=${config.roleId}, reaction=${config.reaction}`);
         return {
             messageId: config.messageId as Snowflake,
@@ -26,18 +40,28 @@ export const setupReactionRoleManager = async (client: Client) => {
     // Add missing reactions to messages
     await addMissingReactions(client, configuration);
     
-    const reactionRoleManager = new ReactionRole(client, configuration);
+    // Create the reaction role manager
+    const reactionRoleManager = new DiscordReactionRole(client, configuration);
     
-    // Add event listeners for role assignment and removal
-    attachReactionRoleEventListeners(client, reactionRoleManager);
+    // Only attach event listeners once
+    if (!listenersAttached) {
+        // Remove existing listeners first to be safe
+        client.removeAllListeners('messageReactionAdd');
+        client.removeAllListeners('messageReactionRemove');
+        
+        // Now attach our listeners
+        attachReactionRoleEventListeners(client);
+        listenersAttached = true;
+    }
     
     console.log(`Reaction role manager setup complete with ${configuration.length} configurations`);
     
     return reactionRoleManager;
 };
 
-// Function to attach event listeners to the reactionRole manager
-function attachReactionRoleEventListeners(client: Client, reactionRoleManager: ReactionRole) {
+// Modified function to attach event listeners to the client directly
+// Important: No longer takes reactionRoleManager as parameter
+function attachReactionRoleEventListeners(client: Client) {
     // Listen for the roleAdd event
     client.on('messageReactionAdd', async (reaction, user) => {
         try {
@@ -47,11 +71,18 @@ function attachReactionRoleEventListeners(client: Client, reactionRoleManager: R
             if (!message.guild) return; // Only process guild messages
             
             // Find if this reaction is configured for a role
-            const config = await db.collection("reactionRoles").findOne({
-                messageId: message.id,
-                reaction: reaction.emoji.id 
-                    ? `<${reaction.emoji.animated ? 'a' : ''}:${reaction.emoji.name}:${reaction.emoji.id}>` 
-                    : reaction.emoji.name
+            const config = await prisma.ReactionRole.findFirst({
+                where: {
+                    messageId: message.id,
+                    reaction: reaction.emoji.id 
+                        ? `<${reaction.emoji.animated ? 'a' : ''}:${reaction.emoji.name}:${reaction.emoji.id}>` 
+                        : reaction.emoji.name
+                },
+                select: {
+                    messageId: true,
+                    roleId: true,
+                    reaction: true
+                }
             });
             
             if (!config) return; // Not a configured reaction role
@@ -77,7 +108,7 @@ function attachReactionRoleEventListeners(client: Client, reactionRoleManager: R
         }
     });
     
-    // Listen for the roleRemove event
+    // Listen for the roleRemove event (similar changes as above)
     client.on('messageReactionRemove', async (reaction, user) => {
         try {
             if (user.bot) return; // Ignore bot reactions
@@ -86,11 +117,18 @@ function attachReactionRoleEventListeners(client: Client, reactionRoleManager: R
             if (!message.guild) return; // Only process guild messages
             
             // Find if this reaction is configured for a role
-            const config = await db.collection("reactionRoles").findOne({
-                messageId: message.id,
-                reaction: reaction.emoji.id 
-                    ? `<${reaction.emoji.animated ? 'a' : ''}:${reaction.emoji.name}:${reaction.emoji.id}>` 
-                    : reaction.emoji.name
+            const config = await prisma.ReactionRole.findFirst({
+                where: {
+                    messageId: message.id,
+                    reaction: reaction.emoji.id 
+                        ? `<${reaction.emoji.animated ? 'a' : ''}:${reaction.emoji.name}:${reaction.emoji.id}>` 
+                        : reaction.emoji.name
+                },
+                select: {
+                    messageId: true,
+                    roleId: true,
+                    reaction: true
+                }
             });
             
             if (!config) return; // Not a configured reaction role
@@ -115,6 +153,10 @@ function attachReactionRoleEventListeners(client: Client, reactionRoleManager: R
             console.error('Error in reaction remove event handler:', error);
         }
     });
+    
+    // Set max listeners to avoid warnings
+    // If you expect to have many listeners, increase this number
+    client.setMaxListeners(20);
     
     console.log('Reaction role event listeners attached');
 }
@@ -231,11 +273,12 @@ async function addMissingReactions(client: Client, configs: ReactionRoleConfigur
 
 // Helper function to add a new reaction role configuration
 export const addReactionRole = async (messageId: Snowflake, roleId: Snowflake, reaction: string, client?: Client) => {
-    await db.collection("reactionRoles").insertOne({
-        messageId,
-        roleId,
-        reaction
-    });
+    // Use raw SQL to avoid issues with missing fields
+    await prisma.$executeRaw`
+        INSERT INTO ReactionRole (messageId, roleId, reaction)
+        VALUES (${messageId}, ${roleId}, ${reaction})
+    `;
+    
     console.log(`Added new reaction role: message=${messageId}, role=${roleId}, reaction=${reaction}`);
     
     // If client is provided, add the reaction to the message immediately
@@ -289,12 +332,14 @@ export const addReactionRole = async (messageId: Snowflake, roleId: Snowflake, r
 
 // Helper function to remove a reaction role configuration
 export const removeReactionRole = async (messageId: Snowflake, roleId: Snowflake) => {
-    const result = await db.collection("reactionRoles").deleteOne({
-        messageId,
-        roleId
+    const result = await prisma.ReactionRole.deleteMany({
+        where: {
+            messageId,
+            roleId
+        }
     });
     
-    if (result.deletedCount > 0) {
+    if (result.count > 0) {
         console.log(`Removed reaction role: message=${messageId}, role=${roleId}`);
         return true;
     }
