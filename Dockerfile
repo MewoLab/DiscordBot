@@ -23,6 +23,7 @@ COPY --from=install /temp/prod/node_modules node_modules
 COPY --from=prisma /app/node_modules/.prisma/client node_modules/.prisma/client
 COPY --from=prisma /app/prisma prisma
 COPY src src
+COPY public public
 COPY entrypoint.sh package.json ./
 
 CMD [ "/bin/bash", "entrypoint.sh" ]

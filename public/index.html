@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reaction Role Manager</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .emoji-picker {
+      font-size: 1.5rem;
+    }
+    .emoji-option {
+      cursor: pointer;
+      margin: 0 5px;
+    }
+    .role-card {
+      margin-bottom: 15px;
+    }
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 5px;
+      margin-top: 10px;
+    }
+    .emoji-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 5px;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .emoji-item:hover {
+      background-color: #f8f9fa;
+    }
+    .emoji-item.active {
+      background-color: #e9ecef;
+      border-color: #6c757d;
+    }
+    .emoji-tabs {
+      margin-bottom: 10px;
+    }
+    .emoji-image {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+    }
+    .custom-emoji-input {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container mt-4">
+    <h1 class="mb-4">Reaction Role Manager</h1>
+    
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Add Reaction Role
+          </div>
+          <div class="card-body">
+            <form id="reactionRoleForm">
+              <div class="mb-3">
+                <label for="guildSelect" class="form-label">Select Server</label>
+                <select class="form-select" id="guildSelect">
+                  <option selected disabled>Choose a server...</option>
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label for="channelSelect" class="form-label">Select Channel</label>
+                <select class="form-select" id="channelSelect" disabled>
+                  <option selected disabled>Choose a channel...</option>
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label for="messageId" class="form-label">Message ID</label>
+                <input type="text" class="form-control" id="messageId" placeholder="Enter message ID">
+              </div>
+              
+              <div class="mb-3">
+                <label for="roleSelect" class="form-label">Select Role</label>
+                <select class="form-select" id="roleSelect" disabled>
+                  <option selected disabled>Choose a role...</option>
+                </select>
+              </div>
+              
+              <div class="mb-3">
+                <label class="form-label">Select Emoji Reaction</label>
+                
+                <ul class="nav nav-tabs emoji-tabs" id="emojiTabs" role="tablist">
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="standard-tab" data-bs-toggle="tab" data-bs-target="#standard" type="button">Standard</button>
+                  </li>
+                  <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="custom-tab" data-bs-toggle="tab" data-bs-target="#custom" type="button">Custom Emojis</button>
+                  </li>
+                </ul>
+                
+                <div class="tab-content" id="emojiTabContent">
+                  <!-- Standard Emojis -->
+                  <div class="tab-pane fade show active" id="standard" role="tabpanel">
+                    <div class="emoji-picker">
+                      <div class="btn-group">
+                        <button type="button" class="btn btn-outline-secondary emoji-option" data-emoji="👍">👍</button>
+                        <button type="button" class="btn btn-outline-secondary emoji-option" data-emoji="❤️">❤️</button>
+                        <button type="button" class="btn btn-outline-secondary emoji-option" data-emoji="🎮">🎮</button>
+                        <button type="button" class="btn btn-outline-secondary emoji-option" data-emoji="🎯">🎯</button>
+                        <button type="button" class="btn btn-outline-secondary emoji-option" data-emoji="🏆">🏆</button>
+                        <button type="button" class="btn btn-outline-secondary emoji-option" data-emoji="✅">✅</button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <!-- Custom Emojis -->
+                  <div class="tab-pane fade" id="custom" role="tabpanel">
+                    <div id="serverEmojis" class="emoji-grid">
+                      <p class="text-muted">Select a server to load custom emojis...</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="custom-emoji-input">
+                  <label for="customEmojiInput" class="form-label">Or enter emoji directly:</label>
+                  <div class="input-group">
+                    <input type="text" class="form-control" id="customEmojiInput" placeholder="Paste emoji or emoji ID" maxlength="50">
+                    <button class="btn btn-outline-secondary" type="button" id="useCustomEmoji">Use This</button>
+                  </div>
+                  <small class="text-muted">You can paste an emoji directly, or use the format &lt;:name:id&gt; for custom emojis</small>
+                </div>
+                
+                <input type="hidden" id="selectedEmoji" value="">
+                <div class="mt-3">
+                  <span class="fw-bold">Selected Emoji: </span>
+                  <span id="selectedEmojiDisplay">None</span>
+                </div>
+              </div>
+              
+              <button type="submit" class="btn btn-primary">Add Reaction Role</button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Current Reaction Roles
+          </div>
+          <div class="card-body">
+            <div id="reactionRolesList">
+              <p class="text-muted">Loading reaction roles...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      let currentGuild = null;
+      
+      // Load Discord resources (guilds, channels, roles)
+      fetch('/api/discord/resources')
+        .then(response => response.json())
+        .then(guilds => {
+          const guildSelect = document.getElementById('guildSelect');
+          
+          // Clear default option
+          guildSelect.innerHTML = '<option selected disabled>Choose a server...</option>';
+          
+          // Add guilds
+          guilds.forEach(guild => {
+            const option = document.createElement('option');
+            option.value = guild.id;
+            option.textContent = guild.name;
+            option.dataset.guild = JSON.stringify(guild);
+            guildSelect.appendChild(option);
+          });
+          
+          // Enable guild select
+          guildSelect.disabled = false;
+        })
+        .catch(error => {
+          console.error('Error loading Discord resources:', error);
+          alert('Failed to load Discord servers. Please check console for details.');
+        });
+      
+      // Handle guild selection
+      document.getElementById('guildSelect').addEventListener('change', function() {
+        const channelSelect = document.getElementById('channelSelect');
+        const roleSelect = document.getElementById('roleSelect');
+        currentGuild = JSON.parse(this.options[this.selectedIndex].dataset.guild);
+        
+        // Populate channels
+        channelSelect.innerHTML = '<option selected disabled>Choose a channel...</option>';
+        currentGuild.channels.forEach(channel => {
+          const option = document.createElement('option');
+          option.value = channel.id;
+          option.textContent = '#' + channel.name;
+          channelSelect.appendChild(option);
+        });
+        channelSelect.disabled = false;
+        
+        // Populate roles
+        roleSelect.innerHTML = '<option selected disabled>Choose a role...</option>';
+        currentGuild.roles.forEach(role => {
+          const option = document.createElement('option');
+          option.value = role.id;
+          option.textContent = role.name;
+          option.style.color = role.color !== '#000000' ? role.color : '';
+          roleSelect.appendChild(option);
+        });
+        roleSelect.disabled = false;
+        
+        // Load server emojis
+        loadServerEmojis(currentGuild.id);
+      });
+      
+      // Load server emojis
+      function loadServerEmojis(guildId) {
+        const emojiContainer = document.getElementById('serverEmojis');
+        emojiContainer.innerHTML = '<p class="text-muted">Loading emojis...</p>';
+        
+        fetch(`/api/discord/guild/${guildId}/emojis`)
+          .then(response => response.json())
+          .then(emojis => {
+            if (!emojis || emojis.length === 0) {
+              emojiContainer.innerHTML = '<p class="text-muted">No custom emojis available in this server</p>';
+              return;
+            }
+            
+            emojiContainer.innerHTML = '';
+            emojis.forEach(emoji => {
+              const emojiItem = document.createElement('div');
+              emojiItem.className = 'emoji-item';
+              emojiItem.dataset.emojiId = emoji.id;
+              emojiItem.dataset.emojiName = emoji.name;
+              
+              if (emoji.animated) {
+                emojiItem.dataset.emoji = `<a:${emoji.name}:${emoji.id}>`;
+                emojiItem.innerHTML = `<img src="https://cdn.discordapp.com/emojis/${emoji.id}.gif" alt="${emoji.name}" class="emoji-image">`;
+              } else {
+                emojiItem.dataset.emoji = `<:${emoji.name}:${emoji.id}>`;
+                emojiItem.innerHTML = `<img src="https://cdn.discordapp.com/emojis/${emoji.id}.png" alt="${emoji.name}" class="emoji-image">`;
+              }
+              
+              emojiItem.addEventListener('click', function() {
+                selectEmoji(this.dataset.emoji);
+                updateEmojiButtons(this);
+              });
+              
+              emojiContainer.appendChild(emojiItem);
+            });
+          })
+          .catch(error => {
+            console.error('Error loading emojis:', error);
+            emojiContainer.innerHTML = '<p class="text-danger">Failed to load server emojis</p>';
+          });
+      }
+      
+      // Handle standard emoji selection
+      document.querySelectorAll('.emoji-option').forEach(button => {
+        button.addEventListener('click', function() {
+          selectEmoji(this.dataset.emoji);
+          updateEmojiButtons(this);
+        });
+      });
+      
+      // Handle custom emoji input
+      document.getElementById('useCustomEmoji').addEventListener('click', function() {
+        const customInput = document.getElementById('customEmojiInput').value.trim();
+        if (customInput) {
+          selectEmoji(customInput);
+          document.querySelectorAll('.emoji-option, .emoji-item').forEach(btn => {
+            btn.classList.remove('active');
+          });
+        }
+      });
+      
+      function selectEmoji(emoji) {
+        document.getElementById('selectedEmoji').value = emoji;
+        document.getElementById('selectedEmojiDisplay').textContent = emoji;
+      }
+      
+      function updateEmojiButtons(selectedButton) {
+        // Reset all buttons
+        document.querySelectorAll('.emoji-option, .emoji-item').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        
+        // Activate selected button
+        selectedButton.classList.add('active');
+      }
+      
+      // Handle form submission
+      document.getElementById('reactionRoleForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const messageId = document.getElementById('messageId').value;
+        const roleId = document.getElementById('roleSelect').value;
+        const reaction = document.getElementById('selectedEmoji').value;
+        
+        // Validate form
+        if (!messageId) {
+          alert('Please enter a message ID');
+          return;
+        }
+        
+        if (roleId === null) {
+          alert('Please select a role');
+          return;
+        }
+        
+        if (!reaction) {
+          alert('Please select an emoji reaction');
+          return;
+        }
+        
+        // Submit form
+        fetch('/api/reaction-roles', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messageId,
+            roleId,
+            reaction
+          }),
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Reaction role added successfully!');
+            loadReactionRoles(); // Refresh the list
+            this.reset(); // Reset form
+            document.querySelectorAll('.emoji-option, .emoji-item').forEach(btn => {
+              btn.classList.remove('active');
+            });
+            document.getElementById('selectedEmojiDisplay').textContent = 'None';
+          } else {
+            alert('Error: ' + data.error);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('An error occurred. Please check console for details.');
+        });
+      });
+      
+      // Load reaction roles
+      function loadReactionRoles() {
+        const reactionRolesList = document.getElementById('reactionRolesList');
+        reactionRolesList.innerHTML = '<p class="text-muted">Loading reaction roles...</p>';
+        
+        fetch('/api/reaction-roles')
+          .then(response => response.json())
+          .then(roles => {
+            if (roles.length === 0) {
+              reactionRolesList.innerHTML = '<p class="text-muted">No reaction roles configured.</p>';
+              return;
+            }
+            
+            reactionRolesList.innerHTML = '';
+            roles.forEach(role => {
+              const card = document.createElement('div');
+              card.className = 'card role-card';
+              
+              // Display emoji properly (handle custom emoji)
+              let emojiDisplay = role.reaction;
+              if (role.reaction.startsWith('<') && role.reaction.endsWith('>')) {
+                // Extract emoji ID for custom emoji
+                const emojiMatch = role.reaction.match(/<a?:([^:]+):(\d+)>/);
+                if (emojiMatch) {
+                  const emojiName = emojiMatch[1];
+                  const emojiId = emojiMatch[2];
+                  const emojiType = role.reaction.startsWith('<a:') ? 'gif' : 'png';
+                  emojiDisplay = `<img src="https://cdn.discordapp.com/emojis/${emojiId}.${emojiType}" alt="${emojiName}" class="emoji-image">`;
+                }
+              }
+              
+              card.innerHTML = `
+                <div class="card-body">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <h5 class="card-title mb-1">Message: ${role.messageId}</h5>
+                      <h6 class="card-subtitle mb-2 text-muted">Role: ${role.roleId}</h6>
+                      <p class="card-text mb-0">Reaction: ${emojiDisplay}</p>
+                    </div>
+                    <button class="btn btn-sm btn-danger delete-role" data-id="${role.id}">Delete</button>
+                  </div>
+                </div>
+              `;
+              reactionRolesList.appendChild(card);
+            });
+            
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.delete-role').forEach(button => {
+              button.addEventListener('click', function() {
+                if (confirm('Are you sure you want to delete this reaction role?')) {
+                  deleteReactionRole(this.dataset.id);
+                }
+              });
+            });
+          })
+          .catch(error => {
+            console.error('Error loading reaction roles:', error);
+            reactionRolesList.innerHTML = '<p class="text-danger">Failed to load reaction roles.</p>';
+          });
+      }
+      
+      // Delete reaction role
+      function deleteReactionRole(id) {
+        fetch(`/api/reaction-roles/${id}`, {
+          method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            alert('Reaction role deleted successfully!');
+            loadReactionRoles(); // Refresh the list
+          } else {
+            alert('Error: ' + data.error);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          alert('An error occurred. Please check console for details.');
+        });
+      }
+      
+      // Initial load
+      loadReactionRoles();
+    });
+  </script>
+</body>
+</html>

@@ -14,5 +14,58 @@ datasource db {
 }
 
 model User {
-  discordid    String   @id
+  id        Int      @id @default(autoincrement())
+  discordId String   @unique
+  username  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  email     String   @unique
+  name      String?
+}
+
+model Guild {
+  id        Int      @id @default(autoincrement())
+  guildId   String   @unique
+  name      String?
+  prefix    String?  @default("!")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+}
+
+// Make sure the ReactionRole model has either both createdAt and updatedAt fields
+// or neither of them:
+
+model ReactionRole {
+  id        Int    @id @default(autoincrement())
+  messageId String
+  roleId    String
+  reaction  String
+
+  // Remove the fields that don't exist in your database:
+  // guildId, createdAt, updatedAt
+
+
+  // Modify indexes to exclude fields that don't exist
+  @@unique([messageId, roleId])
+  @@index([messageId])
+  @@index([roleId])
+}
+
+model Command {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  category    String?
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
