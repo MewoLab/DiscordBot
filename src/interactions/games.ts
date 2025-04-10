@@ -21,7 +21,7 @@ const gameResponses: {
     mu3: {
       oldest: "Ongeki oldest supported version: O.N.G.E.K.I. (1.00)",
       newest: "Ongeki newest supported version: O.N.G.E.K.I. ReFresh (1.50)",
-      faq: "Ongeki FAQ: https://two-torial.xyz/games/ongekibrightmemory/troubleshooting/",
+      faq: "Ongeki FAQ: https://two-torial.xyz/games/sega/ongeki/refresh/troubleshooting/",
       default: "Unknown option selected for Ongeki."
     }
   };
