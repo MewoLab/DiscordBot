@@ -14,13 +14,13 @@ const gameResponses: {
     },
     mai2: {
       oldest: "maimai oldest supported version: maimai DX (1.00)",
-      newest: "maimai newest supported version: maimai DX Prism (1.50)",
-      faq: "maimai FAQ...",
+      newest: "maimai newest supported version: maimai DX Prism Plus (1.55)",
+      faq: "maimai FAQ https://two-torial.xyz/games/sega/maimaidx/prismplus/troubleshooting/",
       default: "Unknown option selected for maimai."
     },
     mu3: {
       oldest: "Ongeki oldest supported version: O.N.G.E.K.I. (1.00)",
-      newest: "Ongeki newest supported version: O.N.G.E.K.I. bright MEMORY (1.40)",
+      newest: "Ongeki newest supported version: O.N.G.E.K.I. ReFresh (1.50)",
       faq: "Ongeki FAQ: https://two-torial.xyz/games/ongekibrightmemory/troubleshooting/",
       default: "Unknown option selected for Ongeki."
     }
