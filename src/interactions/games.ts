@@ -9,7 +9,7 @@ const gameResponses: {
     chuni: {
       oldest: "Chunithm oldest supported version: Chunithm NEW!! (2.00)",
       newest: "Chunithm newest supported version: Chunithm VERSE (2.30)",
-      faq: "Chunithm FAQ: https://two-torial.xyz/games/chunithmluminousplus/troubleshooting/",
+      faq: "Chunithm FAQ: https://two-torial.xyz/games/sega/chunithm/verse/troubleshooting/",
       default: "Unknown option selected for Chunithm."
     },
     mai2: {
