@@ -54,6 +54,9 @@ const Configuration = {
             }
         })(),
     },
+    starboard: {
+        channel_name: "starboard"
+    }
 }
 
 export default Configuration

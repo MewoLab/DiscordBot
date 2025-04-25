@@ -26,4 +26,6 @@ COPY src src
 COPY public public
 COPY entrypoint.sh package.json ./
 
+
+RUN apt-get update -y && apt-get install -y openssl
 CMD [ "/bin/bash", "entrypoint.sh" ]
