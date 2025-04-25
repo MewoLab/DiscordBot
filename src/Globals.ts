@@ -31,7 +31,6 @@ commands.test = new TestEmbedCommand()
 
 ClientSingleton.on("ready", () => {
     Log.info("Client ready.")
-    setupStarboardHandler(ClientSingleton)
 })
 
 ClientSingleton.on("interactionCreate", async interaction => {
