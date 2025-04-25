@@ -27,7 +27,7 @@ export default class StarboardCommand implements ISlashCommand {
                 fields: [
                     {
                         name: "Jump to Message",
-                        value: `[Click Here](https://discord.com/channels/${interaction.guildId}/${entry.messageId})`,
+                        value: `[Click Here](https://discord.com/channels/${interaction.guildId}/${entry.channelId}/${entry.messageId})`,
                         inline: true,
                     },
                 ],
