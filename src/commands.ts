@@ -48,7 +48,7 @@ const commands = [
                         ))),
     new SlashCommandBuilder()
         .setName("test")
-        .setDescription("Test embeds"),            
+        .setDescription("Test embeds")
 ].map(command => command.toJSON());
 
 export default commands;

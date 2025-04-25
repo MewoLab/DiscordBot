@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -30,11 +24,7 @@ model Guild {
   prefix    String?  @default("!")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
 }
-
-// Make sure the ReactionRole model has either both createdAt and updatedAt fields
-// or neither of them:
 
 model ReactionRole {
   id        Int    @id @default(autoincrement())
@@ -42,11 +32,6 @@ model ReactionRole {
   roleId    String
   reaction  String
 
-  // Remove the fields that don't exist in your database:
-  // guildId, createdAt, updatedAt
-
-
-  // Modify indexes to exclude fields that don't exist
   @@unique([messageId, roleId])
   @@index([messageId])
   @@index([roleId])
@@ -68,4 +53,13 @@ model Setting {
   value     String   @db.Text
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Starboard {
+  id                Int      @id @default(autoincrement())
+  messageId         String   @unique
+  starboardMessageId String
+  count             Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
