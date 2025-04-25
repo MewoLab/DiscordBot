@@ -6,6 +6,7 @@ import GamesCommand from "./interactions/games"
 import TestEmbedCommand from "./interactions/test" 
 import { Prisma, PrismaClient } from "@prisma/client"
 import Configuration from "./configuration"
+import { setupStarboardHandler } from './starboardHandler'
 
 const minLevel = Configuration.emit.log_level
 
@@ -30,6 +31,7 @@ commands.test = new TestEmbedCommand()
 
 ClientSingleton.on("ready", () => {
     Log.info("Client ready.")
+    setupStarboardHandler(ClientSingleton)
 })
 
 ClientSingleton.on("interactionCreate", async interaction => {
