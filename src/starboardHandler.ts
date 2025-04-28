@@ -7,22 +7,32 @@ const MIN_STARS = 2;
 
 export const setupStarboardHandler = (client: Client) => {
     client.on('messageReactionAdd', async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
-        if (reaction.partial) await reaction.fetch();
-        if (user.partial) await user.fetch();
-        if (reaction.emoji.name === '⭐') {
-            if (reaction instanceof MessageReaction) {
-                if (!user.partial) {
-                    await handleStarboardAdd(reaction, user);
+        try {
+            if (reaction.partial) await reaction.fetch();
+            if (user.partial) await user.fetch();
+            if (reaction.emoji.name === '⭐') {
+                console.log(`Reaction added by ${user.tag || 'Unknown User'} on message ${reaction.message.id}`);
+                if (reaction instanceof MessageReaction) {
+                    if (!user.partial) {
+                        await handleStarboardAdd(reaction, user);
+                    }
                 }
             }
+        } catch (error) {
+            console.error('Error handling messageReactionAdd:', error);
         }
     });
 
     client.on('messageReactionRemove', async (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => {
-        if (reaction.partial) await reaction.fetch();
-        if (user.partial) await user.fetch();
-        if (reaction.emoji.name === '⭐') {
-            await handleStarboardRemove(reaction as MessageReaction, user as User);
+        try {
+            if (reaction.partial) await reaction.fetch();
+            if (user.partial) await user.fetch();
+            if (reaction.emoji.name === '⭐') {
+                console.log(`Reaction removed by ${user.tag || 'Unknown User'} on message ${reaction.message.id}`);
+                await handleStarboardRemove(reaction as MessageReaction, user as User);
+            }
+        } catch (error) {
+            console.error('Error handling messageReactionRemove:', error);
         }
     });
 };
@@ -31,18 +41,21 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
     const { message } = reaction;
     const starboardChannel = message.guild?.channels.cache.find(channel => channel.name === 'starboard') as TextChannel;
 
-    if (!starboardChannel || !message.author) return;
+    if (!starboardChannel || !message.author) {
+        console.warn('Starboard channel or message author not found.');
+        return;
+    }
 
+    console.log(`Handling starboard add for message ${message.id} by ${message.author.tag}`);
     const existingEntry = await prisma.starboard.findUnique({
         where: { messageId: message.id }
     });
 
-    // Count the number of unique users who have starred the message (excluding the bot)
     const starCount = (await reaction.users.fetch()).filter(u => !u.bot).size;
 
     if (existingEntry) {
-        // Only update if we meet the minimum star requirement
         if (starCount >= MIN_STARS) {
+            console.log(`Updating starboard entry for message ${message.id} with ${starCount} stars.`);
             await prisma.starboard.update({
                 where: { id: existingEntry.id },
                 data: { count: starCount }
@@ -50,6 +63,7 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
 
             const starboardMessage = await starboardChannel.messages.fetch(existingEntry.starboardMessageId).catch(() => null);
             if (starboardMessage && typeof starboardMessage.edit === 'function') {
+                console.log(`Editing starboard message for message ${message.id}.`);
                 const embed = starboardMessage.embeds && starboardMessage.embeds.length > 0 ? starboardMessage.embeds[0] : undefined;
                 if (embed) {
                     embed.fields[0].value = `${starCount} ⭐`;
@@ -65,19 +79,17 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
             }
         }
     } else {
-        // Only create if we meet the minimum star requirement
         if (starCount >= MIN_STARS) {
+            console.log(`Creating new starboard entry for message ${message.id} with ${starCount} stars.`);
             try {
-                // Create the DB entry first
                 const created = await prisma.starboard.create({
                     data: {
                         messageId: message.id,
-                        starboardMessageId: '', // placeholder, will update after sending embed
+                        starboardMessageId: '',
                         count: starCount
                     }
                 });
 
-                // Now send the embed
                 const embed = new EmbedBuilder()
                     .setAuthor({ name: message.author?.tag || 'Unknown', iconURL: message.author?.displayAvatarURL() || '' })
                     .setDescription(message.content || 'No content')
@@ -86,15 +98,14 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
 
                 const starboardMessage = await starboardChannel.send({ embeds: [embed] });
 
-                // Update the DB entry with the starboard message ID
                 await prisma.starboard.update({
                     where: { id: created.id },
                     data: { starboardMessageId: starboardMessage.id }
                 });
-
             } catch (error: any) {
+                console.error('Error creating starboard entry:', error);
                 if (error.code === 'P2002') {
-                    // Entry was created by another process, so update instead
+                    console.warn('Duplicate entry detected, updating instead.');
                     const entry = await prisma.starboard.findUnique({
                         where: { messageId: message.id }
                     });
@@ -131,18 +142,21 @@ const handleStarboardRemove = async (reaction: MessageReaction, user: User) => {
     const { message } = reaction;
     const starboardChannel = message.guild?.channels.cache.find(channel => channel.name === 'starboard') as TextChannel;
 
-    if (!starboardChannel) return;
+    if (!starboardChannel) {
+        console.warn('Starboard channel not found.');
+        return;
+    }
 
+    console.log(`Handling starboard remove for message ${message.id}`);
     const existingEntry = await prisma.starboard.findUnique({
         where: { messageId: message.id }
     });
 
-    // Count the number of unique users who have starred the message (excluding the bot)
     const starCount = (await reaction.users.fetch()).filter(u => !u.bot).size;
 
     if (existingEntry) {
         if (starCount <= 0) {
-            // Delete the starboard entry and the embed if stars drop to 0
+            console.log(`Deleting starboard entry for message ${message.id} as stars dropped to 0.`);
             await prisma.starboard.delete({
                 where: { messageId: message.id }
             });
@@ -152,7 +166,7 @@ const handleStarboardRemove = async (reaction: MessageReaction, user: User) => {
                 await starboardMessage.delete().catch(() => null);
             }
         } else if (starCount < MIN_STARS) {
-            // If stars drop below minimum, also delete the embed and DB entry
+            console.log(`Deleting starboard entry for message ${message.id} as stars dropped below minimum.`);
             await prisma.starboard.delete({
                 where: { messageId: message.id }
             });
@@ -162,6 +176,7 @@ const handleStarboardRemove = async (reaction: MessageReaction, user: User) => {
                 await starboardMessage.delete().catch(() => null);
             }
         } else {
+            console.log(`Updating starboard entry for message ${message.id} with ${starCount} stars.`);
             await prisma.starboard.update({
                 where: { messageId: message.id },
                 data: { count: starCount }
