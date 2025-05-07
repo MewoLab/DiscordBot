@@ -16,6 +16,7 @@ RUN cd /temp/prod && bun i
 FROM base AS prisma
 COPY prisma prisma
 COPY --from=install /temp/dev/node_modules node_modules
+RUN apt-get update -y && apt-get install -y openssl
 RUN bunx prisma generate
 
 FROM base AS release
@@ -25,7 +26,6 @@ COPY --from=prisma /app/prisma prisma
 COPY src src
 COPY public public
 COPY entrypoint.sh package.json ./
-
-
 RUN apt-get update -y && apt-get install -y openssl
+
 CMD [ "/bin/bash", "entrypoint.sh" ]
