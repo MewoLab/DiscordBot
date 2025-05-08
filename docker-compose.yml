@@ -23,7 +23,7 @@ services:
     env_file:
       - .env
     ports:
-      - "3306:3306"  # For database access
+      - "3306:3306"
     environment:
       MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
       MARIADB_DATABASE: "${MARIADB_DATABASE}"

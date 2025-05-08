@@ -53,6 +53,9 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
 
     const starCount = (await reaction.users.fetch()).filter(u => !u.bot).size;
 
+    const firstAttachment = message.attachments.first();
+    const isVideo = firstAttachment?.contentType?.startsWith('video');
+
     if (existingEntry) {
         if (starCount >= MIN_STARS) {
             console.log(`Updating starboard entry for message ${message.id} with ${starCount} stars.`);
@@ -71,10 +74,36 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
                 } else {
                     const newEmbed = new EmbedBuilder()
                         .setAuthor({ name: message.author?.tag || 'Unknown', iconURL: message.author?.displayAvatarURL() || '' })
-                        .setDescription(message.content || 'No content')
-                        .addFields({ name: 'Stars', value: `${starCount} ⭐` })
+                        .setDescription(
+                            message.content && message.content.trim() !== '' 
+                                ? message.content 
+                                : message.attachments.size > 0 
+                                    ? isVideo 
+                                        ? 'This message contains a video.' 
+                                        : 'This message contains attachments.' 
+                                    : 'No content'
+                        )
+                        .addFields(
+                            { name: 'Stars', value: `${starCount} ⭐` },
+                            { name: 'Jump to Message', value: `[Click here](https://discord.com/channels/${message.guild?.id}/${message.channel.id}/${message.id})` }
+                        )
                         .setTimestamp();
-                    await starboardMessage.edit({ embeds: [newEmbed] });
+                    if (isVideo) {
+                        console.log(`Handling video for message ${message.id}`);
+                        // Send the embed first
+                        const embedMessage = await starboardChannel.send({ embeds: [newEmbed] });
+
+                        if (firstAttachment?.size && firstAttachment.size > 8 * 1024 * 1024) { // 8 MB limit
+                            console.warn(`Video file too large to send for message ${message.id}. Sending link instead.`);
+                            await starboardChannel.send(`Video: ${firstAttachment.url}`);
+                        } else if (firstAttachment?.url) {
+                            console.log(`Sending video for message ${message.id}`);
+                            await starboardChannel.send({ files: [firstAttachment.url] });
+                        }
+                    } else {
+                        // Send only the embed if no video
+                        await starboardChannel.send({ embeds: [newEmbed] });
+                    }
                 }
             }
         }
@@ -92,16 +121,48 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
 
                 const embed = new EmbedBuilder()
                     .setAuthor({ name: message.author?.tag || 'Unknown', iconURL: message.author?.displayAvatarURL() || '' })
-                    .setDescription(message.content || 'No content')
-                    .addFields({ name: 'Stars', value: `${starCount} ⭐` })
+                    .setDescription(
+                        message.content && message.content.trim() !== '' 
+                            ? message.content 
+                            : message.attachments.size > 0 
+                                ? isVideo 
+                                    ? 'This message contains a video.' 
+                                    : 'This message contains attachments.' 
+                                : 'No content'
+                    )
+                    .addFields(
+                        { name: 'Stars', value: `${starCount} ⭐` },
+                        { name: 'Jump to Message', value: `[Click here](https://discord.com/channels/${message.guild?.id}/${message.channel.id}/${message.id})` }
+                    )
                     .setTimestamp();
 
-                const starboardMessage = await starboardChannel.send({ embeds: [embed] });
+                if (isVideo) {
+                    console.log(`Handling video for message ${message.id}`);
+                    // Send the embed first
+                    const embedMessage = await starboardChannel.send({ embeds: [embed] });
 
-                await prisma.starboard.update({
-                    where: { id: created.id },
-                    data: { starboardMessageId: starboardMessage.id }
-                });
+                    if (firstAttachment?.size && firstAttachment.size > 8 * 1024 * 1024) { // 8 MB limit
+                        console.warn(`Video file too large to send for message ${message.id}. Sending link instead.`);
+                        await starboardChannel.send(`Video: ${firstAttachment.url}`);
+                    } else if (firstAttachment?.url) {
+                        console.log(`Sending video for message ${message.id}`);
+                        const starboardMessage = await starboardChannel.send({ 
+                            files: [firstAttachment.url] 
+                        });
+
+                        await prisma.starboard.update({
+                            where: { id: created.id },
+                            data: { starboardMessageId: starboardMessage.id }
+                        });
+                    }
+                } else {
+                    const starboardMessage = await starboardChannel.send({ embeds: [embed] });
+
+                    await prisma.starboard.update({
+                        where: { id: created.id },
+                        data: { starboardMessageId: starboardMessage.id }
+                    });
+                }
             } catch (error: any) {
                 console.error('Error creating starboard entry:', error);
                 if (error.code === 'P2002') {
@@ -123,10 +184,36 @@ const handleStarboardAdd = async (reaction: MessageReaction, user: User) => {
                             } else {
                                 const newEmbed = new EmbedBuilder()
                                     .setAuthor({ name: message.author?.tag || 'Unknown', iconURL: message.author?.displayAvatarURL() || '' })
-                                    .setDescription(message.content || 'No content')
-                                    .addFields({ name: 'Stars', value: `${starCount} ⭐` })
+                                    .setDescription(
+                                        message.content && message.content.trim() !== '' 
+                                            ? message.content 
+                                            : message.attachments.size > 0 
+                                                ? isVideo 
+                                                    ? 'This message contains a video.' 
+                                                    : 'This message contains attachments.' 
+                                                : 'No content'
+                                    )
+                                    .addFields(
+                                        { name: 'Stars', value: `${starCount} ⭐` },
+                                        { name: 'Jump to Message', value: `[Click here](https://discord.com/channels/${message.guild?.id}/${message.channel.id}/${message.id})` }
+                                    )
                                     .setTimestamp();
-                                await starboardMessage.edit({ embeds: [newEmbed] });
+                                if (isVideo) {
+                                    console.log(`Handling video for message ${message.id}`);
+                                    // Send the embed first
+                                    const embedMessage = await starboardChannel.send({ embeds: [newEmbed] });
+
+                                    if (firstAttachment?.size && firstAttachment.size > 8 * 1024 * 1024) { // 8 MB limit
+                                        console.warn(`Video file too large to send for message ${message.id}. Sending link instead.`);
+                                        await starboardChannel.send(`Video: ${firstAttachment.url}`);
+                                    } else if (firstAttachment?.url) {
+                                        console.log(`Sending video for message ${message.id}`);
+                                        await starboardChannel.send({ files: [firstAttachment.url] });
+                                    }
+                                } else {
+                                    // Send only the embed if no video
+                                    await starboardChannel.send({ embeds: [newEmbed] });
+                                }
                             }
                         }
                     }
@@ -162,8 +249,10 @@ const handleStarboardRemove = async (reaction: MessageReaction, user: User) => {
             });
 
             const starboardMessage = await starboardChannel.messages.fetch(existingEntry.starboardMessageId).catch(() => null);
-            if (starboardMessage) {
-                await starboardMessage.delete().catch(() => null);
+            if (starboardMessage && typeof starboardMessage.delete === 'function') {
+                await starboardMessage.delete().catch((error) => {
+                    console.error(`Failed to delete starboard message for message ${message.id}:`, error);
+                });
             }
         } else if (starCount < MIN_STARS) {
             console.log(`Deleting starboard entry for message ${message.id} as stars dropped below minimum.`);
@@ -172,8 +261,10 @@ const handleStarboardRemove = async (reaction: MessageReaction, user: User) => {
             });
 
             const starboardMessage = await starboardChannel.messages.fetch(existingEntry.starboardMessageId).catch(() => null);
-            if (starboardMessage) {
-                await starboardMessage.delete().catch(() => null);
+            if (starboardMessage && typeof starboardMessage.delete === 'function') {
+                await starboardMessage.delete().catch((error) => {
+                    console.error(`Failed to delete starboard message for message ${message.id}:`, error);
+                });
             }
         } else {
             console.log(`Updating starboard entry for message ${message.id} with ${starCount} stars.`);
