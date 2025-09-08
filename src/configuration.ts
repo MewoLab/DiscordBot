@@ -54,9 +54,7 @@ const Configuration = {
             }
         })(),
     },
-    starboard: {
-        channel_name: "starboard"
-    }
+    // ...removed starboard configuration...
 }
 
 export default Configuration

@@ -2,7 +2,7 @@ import { Log, ClientSingleton, PrismaSingleton } from "./Globals"
 import { registerCommands } from "./commandRegister"
 import { setupReactionRoleManager } from "./reactionRoleManager"
 import { startWebServer } from './webserver';
-import { setupStarboardHandler } from './starboardHandler'; // P77cb
+// ...removed starboardHandler import...
 
 Log.debug("Environment validation passed, connecting to database...")
 await PrismaSingleton.$connect()
@@ -18,8 +18,7 @@ client.once('ready', () => {
   // Setup reaction role manager
   setupReactionRoleManager(client);
   
-  // Setup starboard handler
-  setupStarboardHandler(client); // P004f
+  // ...removed starboard handler setup...
   
   // Start web UI server
   const PORT = parseInt(process.env.WEB_UI_PORT || '3000');

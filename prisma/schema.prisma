@@ -56,10 +56,4 @@ model Setting {
   updatedAt DateTime @updatedAt
 }
 
-model Starboard {
-  id                 Int    @id @default(autoincrement())
-  messageId          String @unique
-  starboardMessageId String
-  count              Int
-  version            Int    @default(1)
-}
+
