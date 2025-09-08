@@ -50,11 +50,54 @@
     .custom-emoji-input {
       margin-top: 10px;
     }
+    .auth-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .main-content {
+      display: none;
+    }
+    .auth-form {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      width: 90%;
+      max-width: 400px;
+    }
   </style>
 </head>
 <body>
-  <div class="container mt-4">
-    <h1 class="mb-4">Reaction Role Manager</h1>
+  <!-- Authentication Overlay -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-form">
+      <h3 class="text-center mb-4">🔐 Authentication Required</h3>
+      <form id="authForm">
+        <div class="mb-3">
+          <label for="apiKey" class="form-label">Enter API Key:</label>
+          <input type="password" class="form-control" id="apiKey" placeholder="Enter your secret key" required>
+        </div>
+        <button type="submit" class="btn btn-primary w-100">Authenticate</button>
+      </form>
+      <div id="authError" class="alert alert-danger mt-3" style="display: none;"></div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div id="mainContent" class="main-content">
+    <div class="container mt-4">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Reaction Role Manager</h1>
+        <button id="logoutBtn" class="btn btn-outline-danger btn-sm">🔓 Logout</button>
+      </div>
     
     <div class="row">
       <div class="col-md-6">
@@ -160,15 +203,136 @@
         </div>
       </div>
     </div>
-  </div>
+  </div> <!-- End of main content -->
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   <script>
+    // Global API key storage
+    let apiKey = null;
+
+    // Authentication functions
+    function showAuthOverlay() {
+      document.getElementById('authOverlay').style.display = 'flex';
+      document.getElementById('mainContent').style.display = 'none';
+    }
+
+    function hideAuthOverlay() {
+      document.getElementById('authOverlay').style.display = 'none';
+      document.getElementById('mainContent').style.display = 'block';
+    }
+
+    function showAuthError(message) {
+      const errorDiv = document.getElementById('authError');
+      errorDiv.textContent = message;
+      errorDiv.style.display = 'block';
+    }
+
+    function hideAuthError() {
+      document.getElementById('authError').style.display = 'none';
+    }
+
+    // Enhanced fetch function that includes API key
+    function authenticatedFetch(url, options = {}) {
+      if (!apiKey) {
+        throw new Error('No API key available');
+      }
+
+      const headers = {
+        'Content-Type': 'application/json',
+        'X-API-Key': apiKey,
+        ...options.headers
+      };
+
+      return fetch(url, {
+        ...options,
+        headers
+      });
+    }
+
+    // Authentication form handler
+    document.getElementById('authForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      hideAuthError();
+      
+      const inputKey = document.getElementById('apiKey').value.trim();
+      if (!inputKey) {
+        showAuthError('Please enter an API key');
+        return;
+      }
+
+      // Verify the API key
+      fetch('/api/auth/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': inputKey
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.valid) {
+          apiKey = inputKey;
+          localStorage.setItem('discord_bot_api_key', inputKey);
+          hideAuthOverlay();
+          initializeApp();
+        } else {
+          showAuthError('Invalid API key');
+        }
+      })
+      .catch(error => {
+        console.error('Auth error:', error);
+        showAuthError('Authentication failed. Please try again.');
+      });
+    });
+
+    // Logout function
+    document.getElementById('logoutBtn').addEventListener('click', function() {
+      apiKey = null;
+      localStorage.removeItem('discord_bot_api_key');
+      showAuthOverlay();
+      document.getElementById('apiKey').value = '';
+      hideAuthError();
+    });
+
+    // Check for stored API key on page load
     document.addEventListener('DOMContentLoaded', function() {
+      const storedKey = localStorage.getItem('discord_bot_api_key');
+      if (storedKey) {
+        // Verify stored key
+        fetch('/api/auth/verify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': storedKey
+          }
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.valid) {
+            apiKey = storedKey;
+            hideAuthOverlay();
+            initializeApp();
+          } else {
+            localStorage.removeItem('discord_bot_api_key');
+            showAuthOverlay();
+          }
+        })
+        .catch(error => {
+          console.error('Stored key verification failed:', error);
+          localStorage.removeItem('discord_bot_api_key');
+          showAuthOverlay();
+        });
+      } else {
+        showAuthOverlay();
+      }
+    });
+
+    // Main application initialization
+    function initializeApp() {
       let currentGuild = null;
       
       // Load Discord resources (guilds, channels, roles)
-      fetch('/api/discord/resources')
+      authenticatedFetch('/api/discord/resources')
         .then(response => response.json())
         .then(guilds => {
           const guildSelect = document.getElementById('guildSelect');
@@ -229,7 +393,7 @@
         const emojiContainer = document.getElementById('serverEmojis');
         emojiContainer.innerHTML = '<p class="text-muted">Loading emojis...</p>';
         
-        fetch(`/api/discord/guild/${guildId}/emojis`)
+        authenticatedFetch(`/api/discord/guild/${guildId}/emojis`)
           .then(response => response.json())
           .then(emojis => {
             if (!emojis || emojis.length === 0) {
@@ -325,7 +489,7 @@
         }
         
         // Submit form
-        fetch('/api/reaction-roles', {
+        authenticatedFetch('/api/reaction-roles', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -361,7 +525,7 @@
         const reactionRolesList = document.getElementById('reactionRolesList');
         reactionRolesList.innerHTML = '<p class="text-muted">Loading reaction roles...</p>';
         
-        fetch('/api/reaction-roles')
+        authenticatedFetch('/api/reaction-roles')
           .then(response => response.json())
           .then(roles => {
             if (roles.length === 0) {
@@ -419,7 +583,7 @@
       
       // Delete reaction role
       function deleteReactionRole(id) {
-        fetch(`/api/reaction-roles/${id}`, {
+        authenticatedFetch(`/api/reaction-roles/${id}`, {
           method: 'DELETE'
         })
         .then(response => response.json())
@@ -439,7 +603,7 @@
       
       // Initial load
       loadReactionRoles();
-    });
+    } // End of initializeApp function
   </script>
 </body>
 </html>
